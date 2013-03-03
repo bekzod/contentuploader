@@ -1,0 +1,19 @@
+{
+  "name": "contentuploader",
+  "version": "0.0.0",
+  "description": "README",
+  "main": "index.coffee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bekzod/contentuploader.git"
+  },
+  "author": "bekhzod khaitbaev",
+  "license": "BSD",
+  "dependencies": {
+    "express": "~3.1.0",
+    "knox": "~0.5.4"
+  }
+}
