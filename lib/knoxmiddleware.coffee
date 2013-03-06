@@ -55,46 +55,23 @@ exports = module.exports =(options={})->
 			acumulator = ""	
 			
 			req.pause()
-			cp = require("cloud-pipe")(process.env.AWS_BUCKET,process.env.AWS_KEY,process.env.AWS_SECRET,part.filename,bytesUtil('20mb'))
-
-			cp.on "cp-ready",()->
-				req.resume()
-
-			cp.on "cp-drained",()->
-				console.log "drained"
-				req.resume()
+			cp = require("cloud-pipe")(process.env.AWS_BUCKET,process.env.AWS_KEY,process.env.AWS_SECRET,part.filename,bytesUtil('15mb'))
+			
+			cp.on "cp-ready",()->req.resume()
+			cp.on "cp-drained",()->req.resume()
 
 			cp.on "cp-error",(err)->
-				console.log err
-
+				acumulator = null
 
 			part.on 'end',()->
-				console.log "ended"
-				cp.finish();
+				cp.finish()
 
 			part.on 'data',(data)->
 				acumulator+=data
-
 				if cp.write(acumulator)
 					acumulator = ""
-					console.log "success"
 				else
 					req.pause()
-					console.log "failure"
-
-
-
-
-
-			part.on 'data',(data)->
-			# console.log(ofType data) 
-			 #    if (!cp.write(String(data))
-			 #    	console.log "written"
-			 #    else 
-			 #    	console.log "bad"
-
-				# part.on 'end',()->
-				# 	cp.finish()
 
 			part.on 'error',(err)->console.log err
 
