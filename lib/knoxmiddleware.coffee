@@ -52,28 +52,41 @@ exports = module.exports =(options={})->
 		form = new formidable.IncomingForm()
 		form.onPart=(part)->
 			return form.handlePart(part) if !part.filename 
+
+			form.emit('fileBegin', part.name, file);
+			form._flushing++;
+			
 			acumulator = ""	
-			
-			req.pause()
+			partEnded = false
+
 			cp = require("cloud-pipe")(process.env.AWS_BUCKET,process.env.AWS_KEY,process.env.AWS_SECRET,part.filename,bytesUtil('15mb'))
-			
-			cp.on "cp-ready",()->req.resume()
-			cp.on "cp-drained",()->req.resume()
-
-			cp.on "cp-error",(err)->
-				acumulator = null
-
-			part.on 'end',()->
-				cp.finish()
+			cp.on "cp-ready",()->form.resume()
+			cp.on "cp-error",(err)->console.log err
 
 			part.on 'data',(data)->
 				acumulator+=data
 				if cp.write(acumulator)
 					acumulator = ""
 				else
-					req.pause()
+					form.pause()
 
-			part.on 'error',(err)->console.log err
+			part.on 'end',()->
+				partEnded=true
+				cp.finish()
+			
+			file = {
+				name: part.filename
+				type: part.mime
+				hash: form.hash
+			}
+
+			cp.on "cp-drained",()->
+				form.resume()
+				if partEnded
+					form._flushing--;
+					form.emit('file', part.name, file);
+					form._maybeEnd();
+
 
 		form.on 'error',(err)->
 			if !options.defer
