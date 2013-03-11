@@ -1,11 +1,9 @@
-bytesUtil =	 	  require 'bytes'
-formidable= require 'formidable'
+bytesUtil  = require 'bytes'
+formidable = require 'formidable'
 
 noop = (req,res,next)->next()
 
-hasBody = (req)-> 
-	'transfer-encoding' of req.headers || 'content-length' of req.headers;
-
+hasBody = (req)-> 'transfer-encoding' of req.headers || 'content-length' of req.headers;
 
 mime = (req)->
 	str = req.headers['content-type'] || ''
@@ -30,9 +28,6 @@ limit = (bytes)->
 		next();
 
 
-
-
-
 exports = module.exports =(options={})->
 	
 	limit = if options.limit then limit(options.limit) else noop
@@ -48,31 +43,41 @@ exports = module.exports =(options={})->
 		req.files = req.files || {}
 		done = false
 		req._body = true
+
+		files={}
+		data={}
 		
 		form = new formidable.IncomingForm()
+
 		form.onPart=(part)->
 			return form.handlePart(part) if !part.filename 
-
+			
 			form.emit('fileBegin', part.name, file);
 			form._flushing++;
 			
-			acumulator = ""	
-			partEnded = false
+			acumulator = 0	
+			chunkSize = bytesUtil('20mb')
+			partname = 'content/'+part.filename
+			partEnded= false
+			needToFinsh= false
 
-			cp = require("cloud-pipe")(process.env.AWS_BUCKET,process.env.AWS_KEY,process.env.AWS_SECRET,part.filename,bytesUtil('15mb'))
-			cp.on "cp-ready",()->form.resume()
-			cp.on "cp-error",(err)->console.log err
+			req.pause()
+			cp = require("cloud-pipe")(process.env.AWS_BUCKET,process.env.AWS_KEY,process.env.AWS_SECRET,partname,chunkSize,{maxRetry:4})
+			cp.on "cp-error",(err)->form.emit 'error',err
+			cp.on "cp-ready",()->req.resume()
 
 			part.on 'data',(data)->
-				acumulator+=data
-				if cp.write(acumulator)
+				acumulator+=data.toString('binary')
+				if cp.write(acumulator,'binary')
 					acumulator = ""
 				else
-					form.pause()
+					req.pause()
 
 			part.on 'end',()->
-				partEnded=true
-				cp.finish()
+				if acumulator.length
+					cp.write(acumulator)
+				needToFinsh = !cp.finish()
+
 			
 			file = {
 				name: part.filename
@@ -80,14 +85,28 @@ exports = module.exports =(options={})->
 				hash: form.hash
 			}
 
-			cp.on "cp-drained",()->
+			cp.on "cp-end",()->
 				form.resume()
-				if partEnded
-					form._flushing--;
-					form.emit('file', part.name, file);
-					form._maybeEnd();
+				form._flushing--
+				form.emit('file', part.name, file)
+				form._maybeEnd()
 
+			cp.on "cp-drained",()->
+				if needToFinsh
+					cp.finish()
+				else
+					form.resume()
+					
+		ondata=(name, val, data)->
+		  if Array.isArray(data[name])
+		    data[name].push(val)
+		  else if data[name]
+		    data[name] = [data[name], val]
+		  else
+		    data[name] = val;
 
+		form.on 'field',(name, val)->ondata(name, val, data)
+		form.on 'file',(name, val)->ondata(name, val, files)
 		form.on 'error',(err)->
 			if !options.defer
 				err.status = 400;
