@@ -83,6 +83,7 @@ exports = module.exports =(options={})->
 				name: part.filename
 				type: part.mime
 				hash: form.hash
+				url: cp.publicUrl()
 			}
 
 			cp.on "cp-end",()->
