@@ -1,47 +1,128 @@
-knox= require 'knox'
-path= require 'path'
-# knoxmiddleware= require './knoxmiddleware'
+path       = require 'path'
+autos3     = require 'autos3'
+check      = require('validator').check
+express    = require 'express'
+signMaker  = require './aws-url'
 
-express = require 'express'
+aws = signMaker.urlSigner(
+	key    : process.env.AWS_KEY
+	secret : process.env.AWS_SECRET
+	bucket : process.env.AWS_BUCKET
+);
+
+con = require('./schema.js')(process.env.DATABASE)
+
+Content = con.model 'Content'
+
 app = express()
-
-
-
-knoxClient=knox.createClient(
-	key:     process.env.AWS_KEY
-	secret:  process.env.AWS_SECRET
-	bucket:  process.env.AWS_BUCKET
-	endpoint:process.env.AWS_ENDPOINT
-)
-
 
 app.configure ->
 	app.set 'port', process.env.PORT || 5000
 	app.use express.favicon()
-	app.use express.json()
-	app.use express.urlencoded()
-	# app.use knoxmiddleware(
-	# 	client:knoxClient
-	# 	limit:'1gb'
-	# )
+	app.use autos3(
+		key           : process.env.AWS_KEY
+		secret        : process.env.AWS_SECRET
+		bucket        : process.env.AWS_BUCKET
+		defer         : false
+		uploadDir     : '/content/'
+		acceptedTypes :['application/x-shockwave-flash','image/jpeg','image/png','audio/mp3','video/mp4']
+	)
 	app.use express.methodOverride()
 	app.use app.router
-	app.use express.static(path.join(__dirname,'public'))
+	app.use express.static(path.join(__dirname,'../public'))
 
 
 app.get '/', (req, res)->
-	res.send '''
-	<form method="post" enctype="multipart/form-data" action='/'>
-		<input type="text" name='text' value="dwadaw"/>
-		<p>Image: <input type="file" name="video" /></p>
-		<p><input type="submit" value="Upload" /></p>
-	</form>
-	'''
+	res.redirect 'index.html'
 
 
-app.post '/', (req,res)->
-	res.send("da")
+# Content Management API
 
+# ADD CONTENT
+
+app.post '/content',(req,res)->
+	file = req.files['qqfile']
+	return res.send 300 if !file
+
+	try
+		check(req.body.name,'name').notEmpty();
+	catch e
+		return res.send error:e
+
+	req.body.name     = req.body.name.trim()
+	req.body.duration = req.body.duration || 0
+
+	content = new Content {
+		_id       	  : file.id
+		name          : req.body.name
+		type    	  : file.type
+		duration      : req.body.duration
+	}
+
+	content.save (err,content)->
+		return res.send 300 if err
+		res.send {success:true}
+
+
+
+# REMOVE CONTENT
+
+app.del '/content/:contentid',(req,res)->
+	try
+		check(contentid,'content id').len(24)
+	catch e
+		return res.send error:e
+
+
+app.get '/content/:contentid',(req,res)->
+	contentid = req.params.contentid
+	try
+		check(contentid,'player id').len(24)
+	catch e
+		return res.send success:false
+
+	Content.findById contentid,(err,content)->
+		return res.send success:false if err||!content
+		res.send 
+			success:true
+			result:content
+
+
+
+app.get '/content',(req,res)->
+	opts = {}
+
+	opts.limit = req.query.limit || 30 
+	opts.skip  = req.query.skip  || 0;
+	opts.sort  = {}
+	opts.sort[req.query.sort||'_id'] = parseInt(req.query.asc||-1);
+
+	query = {}
+	i=0
+	for k,v of req.query.query
+		break if i++ > 3
+		if v && v[0] == '\/' && v[v.length-1] == '\/'
+			query[k] = new RegExp v.substring(1,v.length-1)
+		else
+			query[k] = v
+	
+	Content.find query,null,opts,(err,contents)->
+		return res.send success:false if err
+		res.send
+			result  : contents
+			success : true
+			options : opts 
+
+
+
+
+app.get '/media/:contentid',(req,res)->
+	contentid = req.params.contentid
+	if true
+		url = aws.getUrl('content/'+contentid,1000*60)
+		res.redirect url
+	else
+		res.send 300
 
 
 app.listen app.get('port')

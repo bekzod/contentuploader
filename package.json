@@ -1,10 +1,11 @@
 {
   "name": "contentuploader",
-  "version": "0.0.0",
+  "version": "0.0.0-6",
   "description": "README",
-  "main": "index.coffee",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "index.js"
   },
   "repository": {
     "type": "git",
@@ -14,6 +15,16 @@
   "license": "BSD",
   "dependencies": {
     "express": "~3.1.0",
-    "knox": "~0.5.4"
+    "knox": "latest",
+    "amazon-s3-url-signer": "0.0.5",
+    "bytes": "~0.2.0",
+    "request": "~2.16.6",
+    "async": "~0.2.6",
+    "mongoose": "~3.6.0",
+    "validator": "~0.4.28"
+  },
+  "subdomain": "beks",
+  "engines": {
+    "node": "0.8.x"
   }
 }
