@@ -3,6 +3,8 @@ autos3     = require 'autos3'
 check      = require('validator').check
 express    = require 'express'
 signMaker  = require './aws-url'
+RedisStore = require('connect-redis')(express)
+
 
 aws = signMaker.urlSigner(
 	key    : process.env.AWS_KEY
@@ -10,7 +12,7 @@ aws = signMaker.urlSigner(
 	bucket : process.env.AWS_BUCKET
 );
 
-con = require('./schema.js')(process.env.DATABASE)
+con = require('./schema')(process.env.DATABASE)
 
 Content = con.model 'Content'
 
@@ -19,6 +21,20 @@ app = express()
 app.configure ->
 	app.set 'port', process.env.PORT || 5000
 	app.use express.favicon()
+	app.use express.cookieParser()
+	app.use express.session(
+		secret: 'khorezmtashkent'
+		cookie:
+			path     : '/'
+			httpOnly : true
+			maxAge   : 12*60*60*1000 
+		store : new RedisStore(
+			host  : "nodejitsudb6982986524.redis.irstack.com"
+			port  : 6379
+			db    : "session"
+			pass  : "nodejitsudb6982986524.redis.irstack.com:f327cfe980c971946e80b8e975fbebb4"
+		)
+	)
 	app.use autos3(
 		key           : process.env.AWS_KEY
 		secret        : process.env.AWS_SECRET
@@ -34,6 +50,7 @@ app.configure ->
 
 app.get '/', (req, res)->
 	res.redirect 'index.html'
+
 
 
 # Content Management API
