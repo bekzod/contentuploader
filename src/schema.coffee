@@ -12,11 +12,14 @@ exports = module.exports = (url)->
 	# Content
 	# 
 	content = new Schema
-		size:Number
-		duration:{type:Number,default:0}
-		owner:[String]
-		type:{type: String, enum: ['application/x-shockwave-flash','image/jpeg','image/png','audio/mp3','video/mp4']}
-		description:{
-			name:String
-		}
+		size: Number
+		duration: 
+			type   : Number
+			default: 0
+		type: 
+			type: String
+			enum: ['application/x-shockwave-flash','image/jpeg','image/png','audio/mp3','video/mp4']
+		description:
+			name: String
+
 	connection.model "Content",content
