@@ -1,6 +1,6 @@
 {
   "name": "contentuploader",
-  "version": "0.0.0-32",
+  "version": "0.0.0-37",
   "description": "README",
   "main": "lib/app",
   "scripts": {
@@ -23,7 +23,8 @@
     "mongoose": "~3.6.0",
     "validator": "~0.4.28",
     "connect-redis": "~1.4.5",
-    "redis": "~0.8.3"
+    "redis": "~0.8.3",
+    "knox": "*"
   },
   "subdomain": "content",
   "engines": {
